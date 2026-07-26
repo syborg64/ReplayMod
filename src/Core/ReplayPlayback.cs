@@ -101,6 +101,8 @@ public class ReplayPlayback
     public void HandlePlayback()
     {
         if (!isPlaying) return;
+        if (isPaused) return;
+        if (Time.deltaTime * playbackSpeed == 0) return;
 
         elapsedPlaybackTime += Time.deltaTime * playbackSpeed;
 
