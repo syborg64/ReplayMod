@@ -1917,7 +1917,7 @@ public class Main : MelonMod
         string targetScene = ReplayFiles.currentHeader.Scene;
         bool switchingScene = targetScene != currentScene;
 
-        bool isCustomMap = targetScene is "Map0" or "Map1" && !string.IsNullOrWhiteSpace(ReplayFiles.currentHeader.CustomMap);
+        bool isCustomMap = targetScene is "Gym" or "Map0" or "Map1" && !string.IsNullOrWhiteSpace(ReplayFiles.currentHeader.CustomMap);
         bool isRawMapData = !string.IsNullOrWhiteSpace(ReplayFiles.currentHeader.CustomMap) && ReplayFiles.currentHeader.CustomMap.Split('|').Length > 15;
         
         DebugLog(
