@@ -1584,6 +1584,7 @@ public class ReplayPlayback
     
     public void SetPlaybackTime(float time)
     {
+        ReplayAPI.ReplaySeekedInternal(time);
         UpdatePlayback(time);
     }
 
