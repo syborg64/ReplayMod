@@ -54,7 +54,7 @@ public class ReplayPlayback
     // Replay Control
     public ReplayInfo currentReplay;
     public string currentReplayPath;
-    public bool isPlaying;
+    public bool isReplayActive;
     public float playbackSpeed = 1f;
     
     public float elapsedPlaybackTime;
@@ -101,7 +101,7 @@ public class ReplayPlayback
     
     public void HandlePlayback()
     {
-        if (!isPlaying) return;
+        if (!isReplayActive) return;
         if (isPaused) return;
         if (Time.deltaTime * playbackSpeed == 0) return;
 
@@ -351,7 +351,7 @@ public class ReplayPlayback
                 }
             }
         
-            isPlaying = true;
+            isReplayActive = true;
             TogglePlayback(true);
 
             ReplayRoot.transform.position = Vector3.zero;
@@ -398,8 +398,8 @@ public class ReplayPlayback
     
     public void StopReplay()
     {
-        if (!isPlaying) return;
-        isPlaying = false;
+        if (!isReplayActive) return;
+        isReplayActive = false;
         ReplayPlaybackControls.Close();
         
         string directory = Path.Combine(MelonEnvironment.UserDataDirectory, "ReplayMod", "TempReplayVoices");
@@ -1485,7 +1485,7 @@ public class ReplayPlayback
     
     public void TogglePlayback(bool active, bool setSpeed = true, bool ignoreIsPlaying = true)
     {
-        if (!isPlaying && !ignoreIsPlaying)
+        if (!isReplayActive && !ignoreIsPlaying)
         {
             Main.ReplayError();
             return;
@@ -1529,7 +1529,7 @@ public class ReplayPlayback
     {
         playbackSpeed = newSpeed;
 
-        if (isPlaying)
+        if (isReplayActive)
         {
             foreach (var structure in PlaybackStructures)
             {
