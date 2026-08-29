@@ -56,6 +56,7 @@ public class ReplayPlayback
     public string currentReplayPath;
     public bool isReplayActive;
     public float playbackSpeed = 1f;
+    public float effectivePlaybackSpeed => isPaused ? 0f : playbackSpeed;
     
     public float elapsedPlaybackTime;
     public int currentPlaybackFrame;
@@ -64,7 +65,6 @@ public class ReplayPlayback
 
     public bool hasPaused;
     public bool isPaused;
-    public float previousPlaybackSpeed = 1f;
     
     // Roots
     public GameObject ReplayRoot;
@@ -868,7 +868,7 @@ public class ReplayPlayback
                 bool isHitstop = state.currentState == Structure.PhysicsState.Frozen;
                 var renderer = structureComp.transform.GetComponentInChildren<Renderer>();
                 renderer?.material?.SetFloat("_shake", isHitstop ? 1 : 0);
-                renderer?.material?.SetFloat("_shakeFrequency", 75 * playbackSpeed);
+                renderer?.material?.SetFloat("_shakeFrequency", 75 * effectivePlaybackSpeed);
                 
                 // Parry
                 bool isParried = state.currentState == Structure.PhysicsState.Floating;
@@ -1016,14 +1016,14 @@ public class ReplayPlayback
             if (sa.active && sb.active)
             {
                 frictionController.Evaluate(
-                    Time.deltaTime * playbackSpeed, // kinda bad, but too much of an edge case to care about
+                    Time.deltaTime * effectivePlaybackSpeed, // kinda bad, but too much of an edge case to care about
                     grounded,
                     velocity
                 );
             }
             
             if (structureComp.currentFrictionVFX != null)
-                structureComp.currentFrictionVFX.visualEffect.playRate = Abs(playbackSpeed);
+                structureComp.currentFrictionVFX.visualEffect.playRate = Abs(effectivePlaybackSpeed);
         }
 
         // ------ Players ------
@@ -1109,7 +1109,7 @@ public class ReplayPlayback
                         vfx.transform.localScale = Vector3.one;
                         
                         vfx.Play();
-                        vfx.playRate = Abs(playbackSpeed);
+                        vfx.playRate = Abs(effectivePlaybackSpeed);
                         AudioManager.instance.Play(ReplayCache.SFX["Call_Shiftstone_Use"], chest.transform.position);
                         var socketIndex = playbackPlayer.Controller.PlayerShiftstones.shiftStoneSockets
                             .FirstOrDefault(s => s.assignedShifstone.name == shiftstoneName)?.assignedSocketIndex;
@@ -1249,7 +1249,7 @@ public class ReplayPlayback
 
             foreach (var vfx in playbackPlayer.GetComponentsInChildren<VisualEffect>())
             {
-                vfx.playRate = Abs(playbackSpeed);
+                vfx.playRate = Abs(effectivePlaybackSpeed);
 
                 if (vfx.GetComponent<FrameControlledVFX>() == null)
                     vfx.gameObject.AddComponent<FrameControlledVFX>();
@@ -1372,7 +1372,7 @@ public class ReplayPlayback
         effect.transform.localRotation = localRotation;
 
         var visualEffect = effect.GetComponent<VisualEffect>();
-        visualEffect.playRate = Abs(playbackSpeed);
+        visualEffect.playRate = Abs(effectivePlaybackSpeed);
         visualEffect.resetSeedOnPlay = false;
         visualEffect.startSeed = (uint)Random.Range(1, int.MaxValue);
 
@@ -1471,7 +1471,7 @@ public class ReplayPlayback
             hitmarker.SetDamage(fx.damage);
             hitmarker.gameObject.SetActive(true);
             hitmarker.Play();
-            hitmarker.GetComponent<VisualEffect>().playRate = Abs(playbackSpeed);
+            hitmarker.GetComponent<VisualEffect>().playRate = Abs(effectivePlaybackSpeed);
         }
 
         if (ReplayCache.FXToSFXName.TryGetValue(fx.fxType, out string audioName) 
@@ -1505,22 +1505,15 @@ public class ReplayPlayback
 
             if (Main.instance.EnableHaptics.Value)
                 Main.LocalPlayer.Controller.PlayerHaptics.PlayControllerHaptics(1f, 0.05f, 1f, 0.05f);
-
-            if (setSpeed)
-                SetPlaybackSpeed(previousPlaybackSpeed);
         }
         else
         {
-            previousPlaybackSpeed = playbackSpeed;
-
             AudioManager.instance.Play(ReplayCache.SFX["Call_DressingRoom_PartPanelTick_ForwardUnlocked"], Main.instance.head.position);
 
             if (Main.instance.EnableHaptics.Value)
                 Main.LocalPlayer.Controller.PlayerHaptics.PlayControllerHaptics(1f, 0.05f, 1f, 0.05f);
-
-            if (setSpeed) 
-                SetPlaybackSpeed(0f);
         }
+        SetPlaybackSpeed(playbackSpeed);
 
         ReplayAPI.ReplayPauseChangedInternal(active);
     }
@@ -1536,7 +1529,7 @@ public class ReplayPlayback
                 if (structure == null) continue;
             
                 foreach (var vfx in structure.GetComponentsInChildren<VisualEffect>())
-                    vfx.playRate = Abs(newSpeed);
+                    vfx.playRate = Abs(effectivePlaybackSpeed);
 
                 if (structure.GetComponent<Structure>().frictionVFX != null)
                     structure.GetComponent<Structure>().frictionVFX.returnToPoolTimer = null;
@@ -1545,7 +1538,7 @@ public class ReplayPlayback
             for (int i = 0; i < VFXParent.transform.childCount; i++)
             {
                 var vfx = VFXParent.transform.GetChild(i);
-                vfx.GetComponent<VisualEffect>().playRate = Abs(newSpeed);
+                vfx.GetComponent<VisualEffect>().playRate = Abs(effectivePlaybackSpeed);
             }
 
             foreach (var pedestal in Recording.Pedestals)
@@ -1553,7 +1546,7 @@ public class ReplayPlayback
                 if (pedestal == null) continue;
             
                 foreach (var vfx in pedestal.GetComponentsInChildren<VisualEffect>())
-                    vfx.playRate = Abs(newSpeed);
+                    vfx.playRate = Abs(effectivePlaybackSpeed);
             }
         }
 
@@ -1561,7 +1554,7 @@ public class ReplayPlayback
         {
             string label;
 
-            if (Approximately(playbackSpeed, 0f))
+            if (Approximately(effectivePlaybackSpeed, 0f))
                 label = "Paused";
             else if (playbackSpeed < 0f)
                 label = $"<< {Abs(playbackSpeed):0.0}x";
@@ -1577,14 +1570,9 @@ public class ReplayPlayback
 
     public void AddPlaybackSpeed(float delta, float minSpeed = -8f, float maxSpeed = 8f)
     {
-        TogglePlayback(isPaused && !Approximately(playbackSpeed + delta, 0), false);
         
         float speed = playbackSpeed + delta;
 
-        if (Approximately(speed, 0))
-            TogglePlayback(false);
-        else
-            TogglePlayback(true, false);
         
         speed = Round(speed * 10f) / 10f;
         speed = Clamp(speed, minSpeed, maxSpeed);
@@ -1653,7 +1641,7 @@ public class ReplayPlayback
         {
             if (fx == null) return;
 
-            bool paused = Abs(playbackSpeed) < 0.0001f;
+            bool paused = isPaused || Abs(playbackSpeed) < 0.0001f;
             fx.vfx.pause = paused;
             fx.vfx.playRate = paused ? 1f : Abs(playbackSpeed);
 
@@ -1910,7 +1898,7 @@ public class ReplayPlayback
             if (Abs(VoiceSource.time - localTime) > 0.1f || changedTrack)
                 VoiceSource.time = localTime;
 
-            if (Main.Playback.playbackSpeed == 0f)
+            if (Main.Playback.isPaused || Main.Playback.playbackSpeed == 0f)
             {
                 VoiceSource.Pause();
                 return;
